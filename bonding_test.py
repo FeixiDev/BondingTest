@@ -162,8 +162,7 @@ class FaultRecovery:
         self.other_node_list = other_node_list
 
     def interface_up(self):
-        for test_node_obj in self.test_node_list:
-            for i in self.yaml_info_list["test_node"]:
+        for test_node_obj, i in zip(self.test_node_list, self.yaml_info_list["test_node"]):
                 sub1 = i['sub_bond_name']["sub1"]
                 cmd = f"ifconfig {sub1} up"
                 utils.exec_cmd(cmd,test_node_obj)
@@ -186,14 +185,13 @@ class FaultRecovery:
             telnet_obj.exec_cmd(cmd2)
             telnet_obj.exec_cmd(cmd3)
 
-    @timeout_decorator.timeout(600)
+    @timeout_decorator.timeout(120)
     def network_cable_up(self):
         a = False
         while a is False:
             status_list = []
             time.sleep(5)
-            for test_node_obj in self.test_node_list:
-                for i in self.yaml_info_list["test_node"]:
+            for test_node_obj, i in zip(self.test_node_list, self.yaml_info_list["test_node"]):
                     sub1 = i['sub_bond_name']["sub1"]
                     status = interface_status_check(test_node_obj,sub1)
                     status_list.append(status)
@@ -224,12 +222,13 @@ class Ping:
             obj.invoke_conn.send(cmd+"\r")
             time.sleep(2)
 
-
     def thread_start_test_node_ping(self):
+        thread_list = []
         for test_node_obj in self.test_node_list:
             state1 = Thread(target=self.start_test_node_ping,args=(test_node_obj,))
             state1.setDaemon(True)
             state1.start()
+            thread_list.append(state1)
 
     def end_test_node_ping(self):
         cmd = "\003"+"\r"
@@ -240,5 +239,34 @@ class Ping:
             stdout = test_node_obj.invoke_conn.recv(9999)
             info = stdout.decode()
             ping_info_list.append(info)
+        return ping_info_list
 
+    def start_other_node_ping(self,test_node_ip,other_node_obj):
+        cmd = f"ping {test_node_ip}"
+        other_node_obj.invoke_conn.send(cmd+"\r")
+        time.sleep(2)
+
+    def thread_start_other_node_ping(self,test_node_ip_list,re_other_node_obj_list):
+        # test_node_ip_list = []
+        # re_other_node_obj_list = []
+        # for i in self.yaml_info_list["test_node"]:
+        #     test_node_ip_list.append(i["ip"])
+        #     other_node_obj = utils.SSHconn(host=self.yaml_info_list["other_node"]["ip"]
+        #                                    ,password=self.yaml_info_list["other_node"]["password"])
+        #     re_other_node_obj_list.append(other_node_obj)
+
+        for test_node_ip,other_node_obj in zip(test_node_ip_list,re_other_node_obj_list):
+            state1 = Thread(target=self.start_other_node_ping,args=(test_node_ip,other_node_obj))
+            state1.setDaemon(True)
+            state1.start()
+
+    def end_other_node_ping(self,re_other_node_obj_list):
+        cmd = "\003"+"\r"
+        ping_info_list = []
+        for other_node_obj in re_other_node_obj_list:
+            other_node_obj.invoke_conn.send(cmd)
+            time.sleep(1)
+            stdout = other_node_obj.invoke_conn.recv(9999)
+            info = stdout.decode()
+            ping_info_list.append(info)
         return ping_info_list

@@ -4,7 +4,6 @@ import sys
 import yaml
 import paramiko
 import telnetlib
-from DALAvailability import exec_command
 import logging
 import logging.handlers
 import datetime
@@ -84,11 +83,11 @@ def get_host_ip():
     return ip
 
 def exec_cmd(cmd, conn=None):
-    local_obj = exec_command.LocalProcess()
     if conn:
         result = conn.exec_cmd(cmd)
     else:
-        result = local_obj.exec_cmd(cmd)
+        result = subprocess.run(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,encoding="utf-8")
+
     result = result.decode() if isinstance(result, bytes) else result
     log_data = f'{get_host_ip()} - {cmd} - {result}'
     Log().logger.info(log_data)
